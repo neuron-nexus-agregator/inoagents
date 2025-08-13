@@ -5,7 +5,7 @@ pub async fn get_embedding(
     model: &str,
     token: &str,
     url: &str,
-) -> Result<Response, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Response, reqwest::Error> {
     let request = Request {
         model_uri: model.to_string(),
         text: text.to_string(),
