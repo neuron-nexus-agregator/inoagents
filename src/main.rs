@@ -1,178 +1,104 @@
 mod db;
 mod embedding;
+mod ino_api;
+mod ino_checker;
 mod ino_loader;
 mod ner;
 mod rv;
 
-//use ino_loader::loader::load;
-
 use dotenv::dotenv;
-
-use std::collections::HashSet;
-use strsim::levenshtein;
-
 use std::env;
-use tokio::time::{Duration, sleep};
+use std::time::Duration;
+use tokio::time::sleep;
 
-use crate::db::sqlite as my_sqlite;
+use crate::ino_checker::checker::get_inos;
+
+use crate::db::sqlite;
 use crate::embedding::vectorize::get_embedding;
-use crate::ner::entities::get_entities;
+use crate::ino_loader::loader::load;
 
-use crate::rv::get;
+use crate::ino_api::server_api;
 
-#[tokio::main]
-async fn main() {
+use actix_web::{App, HttpServer};
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
     dotenv().ok();
+    //load_inos().await;
+    println!("Запуск сервера");
+    HttpServer::new(|| App::new().service(server_api::check))
+        .bind(("127.0.0.1", 8080))?
+        .run()
+        .await
+}
 
-    //let res = load("assets/export.xlsx", "ino").ok();
+async fn load_inos() {
+    let yandex_token: String = env::var("YANDEX_SECRET").ok().unwrap();
+    let yandex_model: String = env::var("YANDEX_MODEL").ok().unwrap();
+    let yandex_url: String = env::var("YANDEX_URL").ok().unwrap();
 
-    let id = "349703";
+    let inos = load("assets/nezh.xlsx", "nezh").ok().unwrap();
+    //let inos = load("assets/export.xlsx", "ino").ok().unwrap();
+    let db = sqlite::Database::new("assets/db/ino.sqlite").ok().unwrap();
+    let mut i = 0;
 
-    let yandex_token = env::var("YANDEX_SECRET").ok().unwrap();
-    let yandex_model = env::var("YANDEX_MODEL").ok().unwrap();
-    let yandex_url = env::var("YANDEX_URL").ok().unwrap();
-    let embeddibg_url = env::var("ENTITIES_URL").ok().unwrap();
+    for ino in inos.iter() {
+        i += 1;
+        loop {
+            sleep(Duration::from_millis(100)).await; // базовая задержка между запросами
+            let embedding_res_row = get_embedding(
+                &ino.name.clone().to_lowercase(),
+                &yandex_model,
+                &yandex_token,
+                &yandex_url,
+            )
+            .await;
 
-    let db = my_sqlite::Database::new("assets/db/db.sqlite");
-
-    match db {
-        Err(e) => {
-            eprintln!("{e}");
-        }
-        Ok(db) => {
-            let inoagents = db.get_all().ok().unwrap();
-            let text = get::getText(id).await;
-            match text {
-                Err(e) => eprintln!("{e}"),
-                Ok(text) => {
-                    let entities = get_entities(&text, &embeddibg_url).await;
-                    match entities {
-                        Err(e) => eprintln!("{e}"),
-                        Ok(response) => {
-                            let entities = response.entities;
-                            for entity in entities.iter() {
-                                let name = entity.name.clone();
-                                let entity_type = entity.entity_type.clone();
-                                if entity_type == "PER" || entity_type == "ORG" {
-                                    let embedding = get_embedding(
-                                        &name,
-                                        &yandex_model,
-                                        &yandex_token,
-                                        &yandex_url,
-                                    )
-                                    .await
-                                    .unwrap()
-                                    .embedding
-                                    .unwrap();
-
-                                    for agent in inoagents.iter() {
-                                        let sim = cosine_similarity(
-                                            embedding.clone(),
-                                            agent.embedding.clone(),
-                                        );
-                                        if sim >= 0.8 && !agent.is_removed {
-                                            let lev = unordered_levenshtein(&name, &agent.name);
-                                            println!(
-                                                "{name} - иноагент по совпадению с {} и схожестью {}% и расстоянием Левенштейна {lev}",
-                                                agent.name,
-                                                sim * 100.0
-                                            );
-                                            break;
-                                        }
-                                    }
-                                    sleep(Duration::from_secs(1)).await;
-                                }
-                            }
-                        }
+            match embedding_res_row {
+                Err(e) => {
+                    eprintln!("{i}/{} — ошибка: {e}, повтор через 1 секунду", inos.len());
+                    sleep(Duration::from_secs(1)).await;
+                    continue; // повторяем запрос
+                }
+                Ok(embedding_res) => {
+                    if let Some(e) = embedding_res.error {
+                        println!(
+                            "Ошибка в ответе {i}/{}: {e}, повтор через 1 секунду",
+                            inos.len()
+                        );
+                        sleep(Duration::from_secs(1)).await;
+                        continue; // повторяем запрос
                     }
+
+                    let embedding = embedding_res.embedding.unwrap();
+
+                    let rec = sqlite::Record {
+                        name: ino.name.clone(),
+                        record_type: ino.status.clone(),
+                        is_removed: ino.is_removed,
+                        embedding,
+                    };
+
+                    if let Err(e) = db.insert(&rec) {
+                        eprintln!("Ошибка при записи {i}/{}: {e}", inos.len());
+                        sleep(Duration::from_secs(1)).await;
+                        continue; // повторяем запись
+                    } else {
+                        println!("{i}/{} — успешно записан", inos.len());
+                    }
+
+                    break; // выходим из цикла, идем к следующему элементу
                 }
             }
         }
     }
 }
 
-fn cosine_similarity(v1: Vec<f32>, v2: Vec<f32>) -> f32 {
-    if v1.len() != v2.len() {
-        return -1.0;
+async fn check(id: &str) {
+    let db_path = "assets/db/ino.sqlite";
+    let inos = get_inos(id, db_path).await;
+    match inos {
+        Err(e) => eprintln!("{e}"),
+        Ok(inos) => println!("{inos:?}"),
     }
-
-    let mut up = 0.0;
-    let mut down_a = 0.0;
-    let mut down_b = 0.0;
-
-    for i in 0..v1.len() {
-        let a = v1[i];
-        let b = v2[i];
-
-        up += a * b;
-        down_a += a * a;
-        down_b += b * b;
-    }
-
-    up / (down_a.sqrt() * down_b.sqrt())
 }
-
-fn unordered_levenshtein(s1: &str, s2: &str) -> usize {
-    // Разбиваем строки на слова и собираем в множества
-    let words1: HashSet<&str> = s1.split_whitespace().collect();
-    let words2: HashSet<&str> = s2.split_whitespace().collect();
-
-    // Считаем количество несовпадающих слов
-    let only_in_1 = words1.difference(&words2).count();
-    let only_in_2 = words2.difference(&words1).count();
-
-    // Можно добавить «взвешенный» вариант с Левенштейном на словах
-    let mut levenshtein_sum = 0;
-    for w1 in &words1 {
-        // Находим минимальное расстояние Левенштейна до любого слова в другой строке
-        let min_dist = words2
-            .iter()
-            .map(|w2| levenshtein(w1, w2))
-            .min()
-            .unwrap_or(w1.len());
-        levenshtein_sum += min_dist;
-    }
-
-    // Итоговое расстояние — сумма несовпадающих слов и расстояний между ними
-    levenshtein_sum + only_in_1 + only_in_2
-}
-
-// INIT INOAGENTS
-// for item in res.unwrap().iter() {
-//     loop {
-//         let emb_model =
-//             get_embedding(&item.name, &yandex_model, &yandex_token, &yandex_url).await;
-
-//         match emb_model {
-//             Err(e) => {
-//                 eprintln!(
-//                     "Ошибка для '{}': {}. Повтор через 1 секунду...",
-//                     item.name, e
-//                 );
-//                 sleep(Duration::from_secs(1)).await;
-//                 continue; // пробуем снова тот же item
-//             }
-//             Ok(emb) => {
-//                 if let Some(t) = emb.embedding {
-//                     println!("{} - {}", item.name, t.len());
-//                     let record = my_sqlite::Record {
-//                         name: item.name.to_string(),
-//                         record_type: "ino".to_string(),
-//                         embedding: t,
-//                         is_removed: false,
-//                     };
-//                     match db.insert(&record) {
-//                         Ok(_) => {
-//                             println!("Успешно записано: {}", item.name)
-//                         }
-//                         Err(e) => eprintln!("{e}"),
-//                     }
-//                     break; // успех, переходим к следующему item
-//                 } else if let Some(eq) = emb.error {
-//                     println!("{} - {}", item.name, eq);
-//                     break; // API вернул ошибку, но не исключение — пропускаем элемент
-//                 }
-//             }
-//         }
-//     }
-// }

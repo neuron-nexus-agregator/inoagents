@@ -1,7 +1,7 @@
 use rusqlite::{Connection, Result, params};
 
 /// Структура данных
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Record {
     pub name: String,
     pub record_type: String,

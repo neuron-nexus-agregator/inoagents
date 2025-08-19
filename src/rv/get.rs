@@ -1,5 +1,6 @@
 use regex::Regex;
 use serde::Deserialize;
+use std::env;
 
 #[derive(Deserialize)]
 pub struct Text {
@@ -8,8 +9,8 @@ pub struct Text {
 
 pub async fn getText(id: &str) -> Result<String, reqwest::Error> {
     let client = reqwest::Client::new();
-    let username = "newrv";
-    let password = "KKEmhu";
+    let username = env::var("RVUSER").ok().unwrap();
+    let password = env::var("RVPASS").ok().unwrap();
     let res = client
         .get(format!("https://rtgazeta.ru/api/news/{id}"))
         .basic_auth(username, Some(password))
