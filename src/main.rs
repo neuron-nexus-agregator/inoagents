@@ -19,7 +19,13 @@ use std::env;
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
-    let need_full_data = env::var("FULL_DATA").ok().unwrap().to_lowercase() == "true";
+    let mut need_full_data: bool = false;
+
+    match env::var("FULL_DATA") {
+        Err(_) => {}
+        Ok(s) => need_full_data = s.to_lowercase() == "true",
+    }
+
     // инициализация Checker
     let checker = server_api::Checker::new("assets/db/ino.sqlite", need_full_data)
         .ok()

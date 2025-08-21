@@ -40,6 +40,7 @@ pub struct Doc {
 pub struct WarningName {
     pub name: String,
     pub normal_name: String,
+    pub context: String,
     pub name_type: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub docs: Vec<Doc>,
@@ -56,7 +57,7 @@ pub struct WarningNames {
 pub async fn get_inos_from_text(
     text: &str,
     inoagents: Vec<Record>,
-    need_fool_data: bool,
+    need_full_data: bool,
 ) -> Result<WarningNames, Error> {
     let entities = get_entities_list_with_retry(text, 3).await?;
 
@@ -67,7 +68,8 @@ pub async fn get_inos_from_text(
         if entity.entity_type != "PER" && entity.entity_type != "ORG" {
             let name: WarningName = WarningName {
                 name: entity.name,
-                normal_name: "not PER or ORG".to_string(),
+                normal_name: entity.norm_name,
+                context: entity.context,
                 name_type: entity.entity_type,
                 docs: Vec::new(),
             };
@@ -78,7 +80,7 @@ pub async fn get_inos_from_text(
         match processed {
             Some(ino) => inos.push(ino),
             None => {
-                if need_fool_data {
+                if need_full_data {
                     let most_relevant = get_most_relevant(0.0, 100, &entity, &inoagents).await?;
 
                     if let Some(e) = most_relevant {
@@ -88,6 +90,7 @@ pub async fn get_inos_from_text(
                     let name = WarningName {
                         name: entity.name,
                         normal_name: entity.norm_name,
+                        context: entity.context,
                         name_type: entity.entity_type,
                         docs: Vec::new(),
                     };
@@ -258,6 +261,7 @@ async fn get_most_relevant(
         let ino = WarningName {
             name: entity.name.clone(),
             normal_name: entity.norm_name.clone(),
+            context: entity.context.clone(),
             name_type: entity.entity_type.clone(),
             docs: status_docs,
         };

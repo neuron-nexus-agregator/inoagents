@@ -59,6 +59,8 @@ pub fn unordered_levenshtein(s1: &str, s2: &str) -> usize {
     let words1: HashSet<&str> = s1.split_whitespace().collect();
     let words2: HashSet<&str> = s2.split_whitespace().collect();
 
+    const MULTIPLIER: usize = 2;
+
     // Считаем количество несовпадающих слов
     let only_in_1 = words1.difference(&words2).count();
     let only_in_2 = words2.difference(&words1).count();
@@ -76,5 +78,5 @@ pub fn unordered_levenshtein(s1: &str, s2: &str) -> usize {
     }
 
     // Итоговое расстояние — сумма несовпадающих слов и расстояний между ними
-    levenshtein_sum + only_in_1 * 2 + only_in_2 * 2
+    levenshtein_sum + (only_in_1 + only_in_2) * MULTIPLIER
 }
