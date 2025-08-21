@@ -76,5 +76,5 @@ pub fn unordered_levenshtein(s1: &str, s2: &str) -> usize {
     }
 
     // Итоговое расстояние — сумма несовпадающих слов и расстояний между ними
-    levenshtein_sum + only_in_1 + only_in_2
+    levenshtein_sum + only_in_1 * 2 + only_in_2 * 2
 }

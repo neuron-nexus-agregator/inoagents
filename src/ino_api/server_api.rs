@@ -12,6 +12,7 @@ use std::sync::RwLock;
 pub struct Checker {
     warning_names: RwLock<Vec<my_sqlite::Record>>,
     db_path: String,
+    pub need_full_data: bool,
 }
 
 #[derive(Serialize)]
@@ -20,20 +21,21 @@ pub struct ErrorS {
 }
 
 impl Checker {
-    pub fn new(db_path: &str) -> Result<Self, Error> {
+    pub fn new(db_path: &str, need_full_data: bool) -> Result<Self, Error> {
         let db = my_sqlite::Database::new(db_path)?;
         let warning_names = db.get_all()?;
         Ok(Checker {
             warning_names: RwLock::new(warning_names),
             db_path: db_path.to_string(),
+            need_full_data,
         })
     }
 
-    pub async fn check_by_id(&self, id: String) -> HttpResponse {
+    pub async fn check_by_id(&self, id: String, need_full_data: bool) -> HttpResponse {
         let mut i: u8 = 0;
         loop {
             let names = { self.warning_names.read().unwrap().clone() };
-            match get_inos(&id, names).await {
+            match get_inos(&id, names, need_full_data).await {
                 Err(e) => {
                     i += 1;
 
@@ -53,11 +55,11 @@ impl Checker {
         }
     }
 
-    pub async fn check_by_text(&self, text: String) -> HttpResponse {
+    pub async fn check_by_text(&self, text: String, need_full_data: bool) -> HttpResponse {
         let mut i: u8 = 0;
         loop {
             let names = { self.warning_names.read().unwrap().clone() };
-            match get_inos_from_text(&text, names).await {
+            match get_inos_from_text(&text, names, need_full_data).await {
                 Err(e) => {
                     i += 1;
 
