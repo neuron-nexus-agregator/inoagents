@@ -11,25 +11,39 @@ use std::env;
 use std::time::Duration;
 use tokio::time::sleep;
 
-use crate::ino_checker::checker::get_inos;
-
 use crate::db::sqlite;
 use crate::embedding::vectorize::get_embedding;
 use crate::ino_loader::loader::load;
 
-use crate::ino_api::server_api;
+use crate::ino_api::{handlers, server_api};
 
-use actix_web::{App, HttpServer};
+use actix_web::{App, HttpServer, web};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    //load_inos().await;
+    // println!("Обновляем список!");
+    // load_inos().await;
+    use std::io::Write;
     println!("Запуск сервера");
-    HttpServer::new(|| App::new().service(server_api::check))
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await
+    std::io::stdout().flush().unwrap();
+
+    // инициализация Checker
+    let checker = server_api::Checker::new("assets/db/ino.sqlite")
+        .ok()
+        .unwrap();
+
+    // оборачиваем в web::Data для шаринга
+    let checker_data = web::Data::new(checker);
+
+    HttpServer::new(move || {
+        App::new()
+            .app_data(checker_data.clone())
+            .route("/check/{id}", web::get().to(handlers::check_handler))
+    })
+    .bind(("0.0.0.0", 8080))?
+    .run()
+    .await
 }
 
 async fn load_inos() {
@@ -37,7 +51,7 @@ async fn load_inos() {
     let yandex_model: String = env::var("YANDEX_MODEL").ok().unwrap();
     let yandex_url: String = env::var("YANDEX_URL").ok().unwrap();
 
-    let inos = load("assets/nezh.xlsx", "nezh").ok().unwrap();
+    let inos = load("assets/export.xlsx", "ino").ok().unwrap();
     //let inos = load("assets/export.xlsx", "ino").ok().unwrap();
     let db = sqlite::Database::new("assets/db/ino.sqlite").ok().unwrap();
     let mut i = 0;
@@ -91,14 +105,5 @@ async fn load_inos() {
                 }
             }
         }
-    }
-}
-
-async fn check(id: &str) {
-    let db_path = "assets/db/ino.sqlite";
-    let inos = get_inos(id, db_path).await;
-    match inos {
-        Err(e) => eprintln!("{e}"),
-        Ok(inos) => println!("{inos:?}"),
     }
 }

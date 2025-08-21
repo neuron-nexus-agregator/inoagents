@@ -7,7 +7,7 @@ pub struct Text {
     text: String,
 }
 
-pub async fn getText(id: &str) -> Result<String, reqwest::Error> {
+pub async fn get_text(id: &str) -> Result<String, reqwest::Error> {
     let client = reqwest::Client::new();
     let username = env::var("RVUSER").ok().unwrap();
     let password = env::var("RVPASS").ok().unwrap();

@@ -1,6 +1,6 @@
 use crate::ner::model::{Request, Response};
 
-pub async fn get_entities(text: &str, url: &str) -> Result<Response, reqwest::Error> {
+pub async fn get_entities(text: &str, url: &str) -> Result<Response, anyhow::Error> {
     let client = reqwest::Client::new();
     let req = Request {
         text: text.to_string(),

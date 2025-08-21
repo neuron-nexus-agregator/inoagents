@@ -2,31 +2,35 @@ use crate::db::sqlite as my_sqlite;
 use std::collections::HashSet;
 use strsim::levenshtein;
 
+pub struct RecordWithRelevance {
+    pub record: my_sqlite::Record,
+    pub similarity: f32,
+}
+
 pub fn get_must_relevant(
     name: &[f32],
     inoagents: &[my_sqlite::Record],
     number: usize,
     treshold: f32,
-) -> Vec<my_sqlite::Record> {
-    // Фильтруем записи по порогу сходства
-    let mut filtered: Vec<my_sqlite::Record> = inoagents
-        .iter()
-        .filter(|rec| cosine_similarity(name, &rec.embedding) >= treshold)
-        .cloned()
-        .collect();
-
-    // Сортируем по убыванию сходства
-    filtered.sort_by(|a, b| {
-        let sim_a = cosine_similarity(name, &a.embedding);
-        let sim_b = cosine_similarity(name, &b.embedding);
-        sim_b
-            .partial_cmp(&sim_a)
+) -> Vec<RecordWithRelevance> {
+    let mut filtered_with_relevance: Vec<RecordWithRelevance> = Vec::new();
+    for agent in inoagents {
+        let sim = cosine_similarity(name, &agent.embedding);
+        if sim >= treshold {
+            let op = RecordWithRelevance {
+                record: agent.clone(),
+                similarity: sim,
+            };
+            filtered_with_relevance.push(op);
+        }
+    }
+    filtered_with_relevance.sort_by(|a, b| {
+        b.similarity
+            .partial_cmp(&a.similarity)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-
-    // Обрезаем до нужного количества
-    filtered.truncate(number);
-    filtered
+    filtered_with_relevance.truncate(number);
+    filtered_with_relevance
 }
 
 fn cosine_similarity(v1: &[f32], v2: &[f32]) -> f32 {
