@@ -7,17 +7,16 @@ use anyhow::Error;
 use serde::Serialize;
 use tokio::time::sleep;
 
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 
 pub struct Checker {
-    //warning_names: Vec<my_sqlite::Record>,
-    warning_names: Arc<RwLock<Vec<my_sqlite::Record>>>,
+    warning_names: RwLock<Vec<my_sqlite::Record>>,
     db_path: String,
 }
 
 #[derive(Serialize)]
-struct ErrorS {
-    error: String,
+pub struct ErrorS {
+    pub error: String,
 }
 
 impl Checker {
@@ -25,7 +24,7 @@ impl Checker {
         let db = my_sqlite::Database::new(db_path)?;
         let warning_names = db.get_all()?;
         Ok(Checker {
-            warning_names: Arc::new(RwLock::new(warning_names)),
+            warning_names: RwLock::new(warning_names),
             db_path: db_path.to_string(),
         })
     }
@@ -54,7 +53,9 @@ impl Checker {
         }
     }
 
-    pub fn update_warning_names(&mut self) -> Result<(), Error> {
+    pub fn update_warning_names(&self) -> Result<(), Error> {
+        // TODO: реализовать само обновление элементов в базе
+
         let db = my_sqlite::Database::new(&self.db_path)?;
         let warning_names = db.get_all()?;
         *self.warning_names.write().unwrap() = warning_names;

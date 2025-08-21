@@ -40,6 +40,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(checker_data.clone())
             .route("/check/{id}", web::get().to(handlers::check_handler))
+            .route("/update", web::get().to(handlers::update_inos))
     })
     .bind(("0.0.0.0", 8080))?
     .run()
