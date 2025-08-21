@@ -1,8 +1,25 @@
 use crate::ino_api::server_api::{Checker, ErrorS};
 use actix_web::{HttpResponse, web};
+use serde::Deserialize;
 
-pub async fn check_handler(checker: web::Data<Checker>, path: web::Path<String>) -> HttpResponse {
-    checker.check(path.into_inner()).await
+#[derive(Deserialize)]
+pub struct TextRequest {
+    pub text: String,
+}
+
+pub async fn check_by_text(
+    checker: web::Data<Checker>,
+    req: web::Json<TextRequest>,
+) -> HttpResponse {
+    let text = &req.text;
+    checker.check_by_text(text.clone()).await
+}
+
+pub async fn check_by_id_handler(
+    checker: web::Data<Checker>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    checker.check_by_id(path.into_inner()).await
 }
 
 pub async fn update_inos(checker: web::Data<Checker>) -> HttpResponse {

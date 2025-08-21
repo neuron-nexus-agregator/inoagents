@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::db::sqlite as my_sqlite;
-use crate::ino_checker::checker::get_inos;
+use crate::ino_checker::checker::{get_inos, get_inos_from_text};
 use actix_web::HttpResponse;
 use anyhow::Error;
 use serde::Serialize;
@@ -29,11 +29,35 @@ impl Checker {
         })
     }
 
-    pub async fn check(&self, id: String) -> HttpResponse {
+    pub async fn check_by_id(&self, id: String) -> HttpResponse {
         let mut i: u8 = 0;
         loop {
             let names = { self.warning_names.read().unwrap().clone() };
             match get_inos(&id, names).await {
+                Err(e) => {
+                    i += 1;
+
+                    if i >= 4 {
+                        let err = ErrorS {
+                            error: format!("{e}"),
+                        };
+                        return HttpResponse::InternalServerError().json(err);
+                    }
+
+                    eprintln!("{e}");
+                    sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
+                Ok(inos) => return HttpResponse::Ok().json(inos),
+            }
+        }
+    }
+
+    pub async fn check_by_text(&self, text: String) -> HttpResponse {
+        let mut i: u8 = 0;
+        loop {
+            let names = { self.warning_names.read().unwrap().clone() };
+            match get_inos_from_text(&text, names).await {
                 Err(e) => {
                     i += 1;
 

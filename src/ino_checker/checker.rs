@@ -54,9 +54,8 @@ pub struct WarningNames {
     pub accepted_names: Vec<AcceptedName>,
 }
 
-pub async fn get_inos(news_id: &str, inoagents: Vec<Record>) -> Result<WarningNames, Error> {
-    let text = get_text(news_id).await?;
-    let entities = get_entities_list_with_retry(&text, 3).await?;
+pub async fn get_inos_from_text(text: &str, inoagents: Vec<Record>) -> Result<WarningNames, Error> {
+    let entities = get_entities_list_with_retry(text, 3).await?;
 
     let mut inos: Vec<WarningName> = Vec::new();
     let mut accepted_names: Vec<AcceptedName> = Vec::new();
@@ -87,6 +86,11 @@ pub async fn get_inos(news_id: &str, inoagents: Vec<Record>) -> Result<WarningNa
         warnings: inos,
         accepted_names,
     })
+}
+
+pub async fn get_inos(news_id: &str, inoagents: Vec<Record>) -> Result<WarningNames, Error> {
+    let text = get_text(news_id).await?;
+    get_inos_from_text(&text, inoagents).await
 }
 
 async fn get_entities_list_with_retry(text: &str, max_retry: u8) -> Result<Vec<Entity>, Error> {

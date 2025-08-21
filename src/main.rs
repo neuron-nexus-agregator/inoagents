@@ -39,7 +39,8 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(checker_data.clone())
-            .route("/check/{id}", web::get().to(handlers::check_handler))
+            .route("/check/{id}", web::get().to(handlers::check_by_id_handler))
+            .route("/check", web::post().to(handlers::check_by_text))
             .route("/update", web::get().to(handlers::update_inos))
     })
     .bind(("0.0.0.0", 8080))?
