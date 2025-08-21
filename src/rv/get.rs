@@ -20,7 +20,7 @@ pub async fn get_text(id: &str) -> Result<String, reqwest::Error> {
     Ok(strip_html(respose.text))
 }
 
-fn strip_html(input: String) -> String {
+pub fn strip_html(input: String) -> String {
     let re = Regex::new(r"<[^>]*>").unwrap();
     re.replace_all(&input, "").to_string()
 }

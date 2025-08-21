@@ -1,4 +1,5 @@
 use crate::ino_api::server_api::{Checker, ErrorS};
+use crate::rv::get::strip_html;
 use actix_web::{HttpResponse, web};
 use serde::Deserialize;
 
@@ -12,7 +13,7 @@ pub async fn check_by_text(
     req: web::Json<TextRequest>,
 ) -> HttpResponse {
     let text = &req.text;
-    checker.check_by_text(text.clone()).await
+    checker.check_by_text(strip_html(text.clone())).await
 }
 
 pub async fn check_by_id_handler(
