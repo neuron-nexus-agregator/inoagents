@@ -1,4 +1,4 @@
-use crate::ino_checker::utils::unordered_levenshtein;
+use crate::utils::funcs::unordered_levenshtein;
 use regex::Regex;
 
 /// Нормализует текст: нижний регистр, удаление точек, кавычек, лишних пробелов

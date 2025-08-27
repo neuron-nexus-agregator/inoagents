@@ -1,40 +1,8 @@
-use crate::db::sqlite as my_sqlite;
 use std::collections::HashSet;
 use strsim::levenshtein;
 
-pub struct RecordWithRelevance {
-    pub record: my_sqlite::Record,
-    pub similarity: f32,
-}
-
-pub fn get_must_relevant(
-    name: &[f32],
-    inoagents: &[my_sqlite::Record],
-    number: usize,
-    treshold: f32,
-) -> Vec<RecordWithRelevance> {
-    let mut filtered_with_relevance: Vec<RecordWithRelevance> = Vec::new();
-    for agent in inoagents {
-        let sim = cosine_similarity(name, &agent.embedding);
-        if sim >= treshold {
-            let op = RecordWithRelevance {
-                record: agent.clone(),
-                similarity: sim,
-            };
-            filtered_with_relevance.push(op);
-        }
-    }
-    filtered_with_relevance.sort_by(|a, b| {
-        b.similarity
-            .partial_cmp(&a.similarity)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    filtered_with_relevance.truncate(number);
-    filtered_with_relevance
-}
-
-fn cosine_similarity(v1: &[f32], v2: &[f32]) -> f32 {
-    if v1.len() != v2.len() {
+pub fn cosine_similarity(v1: &[f32], v2: &[f32]) -> f32 {
+    if v1.len() != v2.len() || v1.is_empty() || v2.is_empty() {
         return -1.0;
     }
 
@@ -42,10 +10,7 @@ fn cosine_similarity(v1: &[f32], v2: &[f32]) -> f32 {
     let mut down_a = 0.0;
     let mut down_b = 0.0;
 
-    for i in 0..v1.len() {
-        let a = v1[i];
-        let b = v2[i];
-
+    for (&a, &b) in v1.iter().zip(v2.iter()) {
         up += a * b;
         down_a += a * a;
         down_b += b * b;

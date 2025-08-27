@@ -10,10 +10,17 @@ use crate::rv::get::get_text;
 use std::collections::HashMap;
 
 use crate::ino_checker::name_checker::compare_names;
-use crate::ino_checker::utils::{get_must_relevant, unordered_levenshtein};
+use crate::utils::funcs::{cosine_similarity, unordered_levenshtein};
+
+use crate::db::sqlite as my_sqlite;
 
 const MAX_DIS: usize = 7;
 const MAX_TRESHOLD: f32 = 0.61;
+
+pub struct RecordWithRelevance {
+    pub record: my_sqlite::Record,
+    pub similarity: f32,
+}
 
 #[derive(Serialize, Debug, Clone)]
 struct Distances {
@@ -76,12 +83,13 @@ pub async fn get_inos_from_text(
             accepted_names.push(name);
             continue;
         }
-        let processed = process_entity(&entity, &inoagents).await?;
+        let processed = get_most_relevant_names(MAX_TRESHOLD, MAX_DIS, &entity, &inoagents).await?;
         match processed {
             Some(ino) => inos.push(ino),
             None => {
                 if need_full_data {
-                    let most_relevant = get_most_relevant(0.0, 100, &entity, &inoagents).await?;
+                    let most_relevant =
+                        get_most_relevant_names(0.0, 100, &entity, &inoagents).await?;
 
                     if let Some(e) = most_relevant {
                         accepted_names.push(e)
@@ -149,13 +157,6 @@ async fn fetch_entity_embedding_with_retry(name: &str, max_retry: u8) -> Result<
     Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Unknown embedding error")))
 }
 
-async fn process_entity(
-    entity: &Entity,
-    inoagents: &[Record],
-) -> Result<Option<WarningName>, Error> {
-    get_most_relevant(MAX_TRESHOLD, MAX_DIS, entity, inoagents).await
-}
-
 fn process_docs(docs: Vec<Doc>) -> Vec<Doc> {
     let mut grouped: HashMap<String, Vec<Doc>> = HashMap::new();
 
@@ -199,7 +200,7 @@ async fn get_entity_embedding(name: &str) -> Result<Vec<f32>, Error> {
         .ok_or_else(|| anyhow!("No embedding returned for {name}"))
 }
 
-async fn get_most_relevant(
+async fn get_most_relevant_names(
     treshold: f32,
     max_distance: usize,
     entity: &Entity,
@@ -267,4 +268,30 @@ async fn get_most_relevant(
         };
         Ok(Some(ino))
     }
+}
+
+pub fn get_must_relevant(
+    name: &[f32],
+    inoagents: &[my_sqlite::Record],
+    number: usize,
+    treshold: f32,
+) -> Vec<RecordWithRelevance> {
+    let mut filtered_with_relevance: Vec<RecordWithRelevance> = Vec::new();
+    for agent in inoagents {
+        let sim = cosine_similarity(name, &agent.embedding);
+        if sim >= treshold {
+            let op = RecordWithRelevance {
+                record: agent.clone(),
+                similarity: sim,
+            };
+            filtered_with_relevance.push(op);
+        }
+    }
+    filtered_with_relevance.sort_by(|a, b| {
+        b.similarity
+            .partial_cmp(&a.similarity)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    filtered_with_relevance.truncate(number);
+    filtered_with_relevance
 }

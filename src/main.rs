@@ -2,9 +2,9 @@ mod db;
 mod embedding;
 mod ino_api;
 mod ino_checker;
-mod ino_loader;
 mod ner;
 mod rv;
+mod utils;
 
 use dotenv::dotenv;
 
