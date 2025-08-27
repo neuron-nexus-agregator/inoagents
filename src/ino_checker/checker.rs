@@ -2,7 +2,7 @@ use anyhow::{Error, anyhow};
 use serde::Serialize;
 use std::env;
 
-use crate::db::sqlite::Record;
+use crate::db::models::Record;
 use crate::embedding::vectorize::get_embedding;
 use crate::ner::entities::get_entities;
 use crate::ner::model::Entity;
@@ -18,7 +18,7 @@ const MAX_DIS: usize = 7;
 const MAX_TRESHOLD: f32 = 0.61;
 
 pub struct RecordWithRelevance {
-    pub record: my_sqlite::Record,
+    pub record: Record,
     pub similarity: f32,
 }
 
@@ -272,7 +272,7 @@ async fn get_most_relevant_names(
 
 pub fn get_must_relevant(
     name: &[f32],
-    inoagents: &[my_sqlite::Record],
+    inoagents: &[Record],
     number: usize,
     treshold: f32,
 ) -> Vec<RecordWithRelevance> {

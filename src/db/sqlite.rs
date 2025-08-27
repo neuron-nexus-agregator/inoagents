@@ -1,20 +1,12 @@
+use crate::db::interface::DB;
+use crate::db::models::Record;
 use rusqlite::{Connection, Result, params};
-
-/// Структура данных
-#[derive(Debug, Clone)]
-pub struct Record {
-    pub name: String,
-    pub record_type: String,
-    pub embedding: Vec<f32>,
-    pub is_removed: bool,
-}
 
 pub struct Database {
     conn: Connection,
 }
 
 impl Database {
-    /// Создание или открытие БД
     pub fn new(path: &str) -> Result<Self> {
         let conn = Connection::open(path)?;
         conn.execute(
@@ -29,9 +21,11 @@ impl Database {
         )?;
         Ok(Self { conn })
     }
+}
 
+impl DB for Database {
     /// Сохранение записи
-    pub fn insert(&self, record: &Record) -> Result<()> {
+    fn insert(&self, record: &Record) -> Result<(), anyhow::Error> {
         let blob: Vec<u8> = record
             .embedding
             .iter()
@@ -51,7 +45,7 @@ impl Database {
     }
 
     /// Чтение всех записей
-    pub fn get_all(&self) -> Result<Vec<Record>> {
+    fn get_all(&self) -> Result<Vec<Record>, anyhow::Error> {
         let mut stmt = self
             .conn
             .prepare("SELECT name, type, embedding, is_removed FROM records")?;

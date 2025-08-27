@@ -1,5 +1,7 @@
+use crate::db::interface::DB;
 use std::time::Duration;
 
+use crate::db::models::Record;
 use crate::db::sqlite as my_sqlite;
 use crate::ino_checker::checker::{get_inos, get_inos_from_text};
 use actix_web::HttpResponse;
@@ -10,7 +12,7 @@ use tokio::time::sleep;
 use std::sync::RwLock;
 
 pub struct Checker {
-    warning_names: RwLock<Vec<my_sqlite::Record>>,
+    warning_names: RwLock<Vec<Record>>,
     db_path: String,
     pub need_full_data: bool,
 }
