@@ -1,3 +1,3 @@
 pub mod interface;
-pub mod models;
+pub mod model;
 pub mod sqlite;

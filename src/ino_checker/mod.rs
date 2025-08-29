@@ -1,2 +1,4 @@
-pub mod checker;
-pub mod name_checker;
+pub mod interface;
+pub mod model;
+pub mod new_checker;
+pub mod new_name_checker;

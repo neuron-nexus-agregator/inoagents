@@ -8,37 +8,62 @@ mod utils;
 
 use dotenv::dotenv;
 
-use crate::ino_api::{handlers, server_api};
+use crate::ino_api::handlers;
 
 use actix_web::middleware::Logger;
 use actix_web::{App, HttpServer, web};
 
+use crate::ner::entities::PythonEntities;
 use std::env;
 
+use crate::ino_checker::new_checker::WarningNamesChecker;
+use crate::ino_checker::new_name_checker::NameChecker;
+
+use crate::embedding::vectorize::YandexEmbedding;
+
+use crate::db::interface::DB;
+use crate::db::sqlite::Database;
+
+use crate::ino_api::server_api::Checker as api_checker;
+
+use std::sync::{Arc, Mutex};
+
+use std::io::Write;
+
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<(), std::io::Error> {
     dotenv().ok();
-
-    let mut need_full_data: bool = false;
-
-    match env::var("FULL_DATA") {
-        Err(_) => {}
-        Ok(s) => need_full_data = s.to_lowercase() == "true",
-    }
-
-    // инициализация Checker
-    let checker = server_api::Checker::new("assets/db/ino.sqlite", need_full_data)
-        .ok()
-        .unwrap();
-
-    // оборачиваем в web::Data для шаринга
-    let checker_data = web::Data::new(checker);
-
     env_logger::init();
 
-    use std::io::Write;
+    let entities_url = env::var("ENTITIES_URL").ok().unwrap();
+    let rv_entities = PythonEntities::new(entities_url);
+
+    let name_checker = NameChecker::new();
+
+    let model = env::var("YANDEX_MODEL").ok().unwrap();
+    let token = env::var("YANDEX_SECRET").ok().unwrap();
+    let url = env::var("YANDEX_URL").ok().unwrap();
+    let yandex_embedding = YandexEmbedding::new(model, token, url);
+
+    let db = Arc::new(Mutex::new(
+        Database::new("assets/db/ino.sqlite").ok().unwrap(),
+    ));
+    let warning_names = db.lock().unwrap().get_all().ok().unwrap();
+
+    let warning_name_checker = Mutex::new(WarningNamesChecker::new(
+        warning_names,
+        yandex_embedding,
+        name_checker,
+        rv_entities,
+    ));
+
     println!("Запуск сервера");
     std::io::stdout().flush().unwrap();
+
+    let need_full_data = true;
+
+    let api_checker = api_checker::new(need_full_data, warning_name_checker, db);
+    let checker_data = web::Data::new(api_checker);
 
     HttpServer::new(move || {
         App::new()

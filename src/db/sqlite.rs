@@ -1,5 +1,5 @@
 use crate::db::interface::DB;
-use crate::db::models::Record;
+use crate::db::model::Record;
 use rusqlite::{Connection, Result, params};
 
 pub struct Database {
@@ -41,6 +41,10 @@ impl DB for Database {
                 if record.is_removed { 1 } else { 0 }
             ],
         )?;
+        Ok(())
+    }
+
+    fn update_vector(&self, id: i32, vec: &[f32]) -> Result<(), anyhow::Error> {
         Ok(())
     }
 

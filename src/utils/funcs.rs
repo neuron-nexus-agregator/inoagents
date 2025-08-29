@@ -20,9 +20,12 @@ pub fn cosine_similarity(v1: &[f32], v2: &[f32]) -> f32 {
 }
 
 pub fn unordered_levenshtein(s1: &str, s2: &str) -> usize {
+    let s1_norm = s1.to_lowercase();
+    let s2_norm = s2.to_lowercase();
+
     // Разбиваем строки на слова и собираем в множества
-    let words1: HashSet<&str> = s1.split_whitespace().collect();
-    let words2: HashSet<&str> = s2.split_whitespace().collect();
+    let words1: HashSet<&str> = s1_norm.split_whitespace().collect();
+    let words2: HashSet<&str> = s2_norm.split_whitespace().collect();
 
     const MULTIPLIER: usize = 2;
 
@@ -44,4 +47,18 @@ pub fn unordered_levenshtein(s1: &str, s2: &str) -> usize {
 
     // Итоговое расстояние — сумма несовпадающих слов и расстояний между ними
     levenshtein_sum + (only_in_1 + only_in_2) * MULTIPLIER
+}
+
+pub fn keep_russian_and_dot(input: &str) -> String {
+    input
+        .chars()
+        .filter(|c| {
+            // Русские буквы (А-Я, а-я, Ё, ё)
+            (*c >= 'А' && *c <= 'я') || *c == 'Ё' || *c == 'ё'
+            // Английские буквы (A-Z, a-z)
+            || (*c >= 'A' && *c <= 'Z') || (*c >= 'a' && *c <= 'z')
+            // Символы '.' и '&'
+            || *c == '.' || *c == '&'
+        })
+        .collect()
 }
