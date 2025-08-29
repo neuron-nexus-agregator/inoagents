@@ -26,7 +26,8 @@ use crate::db::sqlite::Database;
 
 use crate::ino_api::server_api::Checker as api_checker;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use std::io::Write;
 
@@ -48,7 +49,7 @@ async fn main() -> Result<(), std::io::Error> {
     let db = Arc::new(Mutex::new(
         Database::new("assets/db/ino.sqlite").ok().unwrap(),
     ));
-    let warning_names = db.lock().unwrap().get_all().ok().unwrap();
+    let warning_names = db.lock().await.get_all().ok().unwrap();
 
     let warning_name_checker = Mutex::new(WarningNamesChecker::new(
         warning_names,
@@ -74,6 +75,7 @@ async fn main() -> Result<(), std::io::Error> {
             .route("/check/{id}", web::get().to(handlers::check_by_id_handler))
             .route("/check", web::post().to(handlers::check_by_text))
             .route("/update", web::get().to(handlers::update_inos))
+            .route("/add", web::post().to(handlers::add_new_names))
     })
     .bind(("0.0.0.0", 8080))?
     .run()

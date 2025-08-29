@@ -7,12 +7,15 @@ use anyhow::Error;
 use serde::Serialize;
 use tokio::time::sleep;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+use crate::db::model::Record;
 
 pub struct Checker<T: BasicChecker, D: DB> {
     pub need_full_data: bool,
-    pub checker: Mutex<T>,
-    pub database: Arc<Mutex<D>>,
+    checker: Mutex<T>,
+    database: Arc<Mutex<D>>,
 }
 
 #[derive(Serialize)]
@@ -39,7 +42,7 @@ impl<T: BasicChecker, D: DB> Checker<T, D> {
             match self
                 .checker
                 .lock()
-                .unwrap()
+                .await
                 .get_inos(&id, need_full_data)
                 .await
             {
@@ -68,7 +71,7 @@ impl<T: BasicChecker, D: DB> Checker<T, D> {
             match self
                 .checker
                 .lock()
-                .unwrap()
+                .await
                 .get_inos_from_text(&text, need_full_data)
                 .await
             {
@@ -91,12 +94,17 @@ impl<T: BasicChecker, D: DB> Checker<T, D> {
         }
     }
 
-    pub fn update_warning_names(&self) -> Result<(), Error> {
-        let new_warning_names = self.database.lock().unwrap().get_all()?;
+    pub async fn update_warning_names(&self) -> Result<(), Error> {
+        let new_warning_names = self.database.lock().await.get_all()?;
         self.checker
             .lock()
-            .unwrap()
+            .await
             .change_warning_names(new_warning_names);
         Ok(())
+    }
+
+    pub async fn add_warning_names(&self, names: Vec<Record>) -> HttpResponse {
+        self.checker.lock().await.add_warning_names(names);
+        HttpResponse::Ok().finish()
     }
 }

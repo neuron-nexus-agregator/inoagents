@@ -2,8 +2,7 @@ use crate::ino_api::server_api::{Checker, ErrorS};
 use actix_web::{HttpResponse, web};
 use serde::Deserialize;
 
-use crate::ino_checker::interface::BasicChecker;
-
+use crate::db::model::Record;
 use crate::db::sqlite::Database;
 use crate::embedding::vectorize::YandexEmbedding;
 use crate::ino_checker::new_checker::WarningNamesChecker;
@@ -18,48 +17,39 @@ pub struct TextRequest {
     pub text: String,
 }
 
+#[derive(Deserialize, Clone)]
+pub struct Records {
+    pub records: Vec<Record>,
+}
+
+pub async fn add_new_names(
+    checker: web::Data<ApiChecker>,
+    req: web::Json<Records>,
+) -> HttpResponse {
+    checker.add_warning_names(req.records.clone()).await
+}
+
 pub async fn check_by_text(
     checker: web::Data<ApiChecker>,
     req: web::Json<TextRequest>,
 ) -> HttpResponse {
-    let result = checker
-        .checker
-        .lock()
-        .unwrap()
-        .get_inos_from_text(&req.text, checker.need_full_data)
-        .await;
-
-    match result {
-        Ok(inos) => HttpResponse::Ok().json(inos),
-        Err(e) => HttpResponse::InternalServerError().json(ErrorS {
-            error: format!("{e}"),
-        }),
-    }
+    checker
+        .check_by_text(req.text.clone(), checker.need_full_data)
+        .await
 }
 
 pub async fn check_by_id_handler(
     checker: web::Data<ApiChecker>,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let id = path.into_inner();
-    let result = checker
-        .checker
-        .lock()
-        .unwrap()
-        .get_inos(&id, checker.need_full_data)
-        .await;
-
-    match result {
-        Ok(inos) => HttpResponse::Ok().json(inos),
-        Err(e) => HttpResponse::InternalServerError().json(ErrorS {
-            error: format!("{e}"),
-        }),
-    }
+    checker
+        .check_by_id(path.into_inner(), checker.need_full_data)
+        .await
 }
 
 pub async fn update_inos(checker: web::Data<ApiChecker>) -> HttpResponse {
     // блокируем доступ к изменяемым полям внутри Checker
-    let result = checker.update_warning_names();
+    let result = checker.update_warning_names().await;
 
     match result {
         Ok(_) => HttpResponse::Ok().finish(),

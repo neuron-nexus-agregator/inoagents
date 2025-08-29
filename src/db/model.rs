@@ -1,4 +1,6 @@
-#[derive(Debug, Clone)]
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Record {
     pub name: String,
     pub record_type: String,

@@ -10,5 +10,4 @@ pub struct Request {
 #[derive(Deserialize)]
 pub struct Response {
     pub embedding: Option<Vec<f32>>,
-    pub error: Option<String>,
 }
