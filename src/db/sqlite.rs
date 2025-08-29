@@ -1,6 +1,6 @@
 use crate::db::interface::DB;
 use crate::db::model::Record;
-use rusqlite::{Connection, Result, params};
+use rusqlite::{Connection, Result};
 
 pub struct Database {
     conn: Connection,
@@ -24,30 +24,6 @@ impl Database {
 }
 
 impl DB for Database {
-    /// Сохранение записи
-    fn insert(&self, record: &Record) -> Result<(), anyhow::Error> {
-        let blob: Vec<u8> = record
-            .embedding
-            .iter()
-            .flat_map(|f| f.to_le_bytes().to_vec())
-            .collect();
-
-        self.conn.execute(
-            "INSERT INTO records (name, type, embedding, is_removed) VALUES (?1, ?2, ?3, ?4)",
-            params![
-                record.name,
-                record.record_type,
-                blob,
-                if record.is_removed { 1 } else { 0 }
-            ],
-        )?;
-        Ok(())
-    }
-
-    fn update_vector(&self, id: i32, vec: &[f32]) -> Result<(), anyhow::Error> {
-        Ok(())
-    }
-
     /// Чтение всех записей
     fn get_all(&self) -> Result<Vec<Record>, anyhow::Error> {
         let mut stmt = self
