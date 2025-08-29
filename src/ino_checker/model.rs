@@ -24,7 +24,7 @@ pub struct Doc {
     pub is_removed: bool,
     pub similarity: f32,
     pub distance: usize,
-    pub debug_distances: Distances,
+    pub debug_distances: Option<Distances>,
 }
 
 #[derive(Debug, Serialize)]

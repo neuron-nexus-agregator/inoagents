@@ -1,10 +1,11 @@
 use crate::db::model::Record;
 use crate::embedding::interface::Embedding;
 use crate::ino_checker::interface::{BasicChecker, SmartNameChecker};
-use crate::ino_checker::model;
+use crate::ino_checker::model::{self, WarningName};
 use crate::ner::interface::Entities;
 use crate::ner::model::Entity;
 use crate::rv::get::get_text;
+use crate::utils::funcs::keep_russian_and_dot;
 use crate::utils::funcs::{cosine_similarity, unordered_levenshtein};
 use std::collections::HashMap;
 
@@ -64,9 +65,12 @@ impl<T: Embedding, S: SmartNameChecker, E: Entities> WarningNamesChecker<T, S, E
         max_distance: usize,
         entity: &Entity,
     ) -> Result<Option<model::WarningName>, anyhow::Error> {
-        let embedding = self
-            .fetch_entity_embedding_with_retry(&entity.name, 3)
-            .await?;
+        let name = keep_russian_and_dot(&entity.name);
+        if name.is_empty() {
+            return Ok(None);
+        }
+
+        let embedding = self.fetch_entity_embedding_with_retry(&name, 3).await?;
 
         let most_relevant = self.get_must_relevant(&embedding, 5, treshold);
         if most_relevant.is_empty() {
@@ -109,7 +113,7 @@ impl<T: Embedding, S: SmartNameChecker, E: Entities> WarningNamesChecker<T, S, E
                     status: ag.record.record_type.clone(),
                     similarity: ag.similarity,
                     distance: dis,
-                    debug_distances: distances.clone(),
+                    debug_distances: Some(distances.clone()),
                 };
                 docs.push(doc);
             }
@@ -192,6 +196,37 @@ impl<T: Embedding, S: SmartNameChecker, E: Entities> WarningNamesChecker<T, S, E
         }
         Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Unknown embedding error")))
     }
+
+    fn check_english_name(&self, entity: Entity) -> Option<WarningName> {
+        let test_name = entity.name.clone().to_lowercase();
+        let mut res = WarningName {
+            name: entity.name.clone(),
+            normal_name: entity.norm_name.clone(),
+            name_type: entity.entity_type.clone(),
+            context: entity.context.clone(),
+            docs: Vec::new(),
+        };
+        for warning_name in self.warning_names.clone() {
+            let u_name = warning_name.name.to_lowercase();
+            if u_name.contains(&test_name) {
+                let doc = model::Doc {
+                    status: warning_name.record_type.clone(),
+                    similarity: 1.0,
+                    distance: 0,
+                    is_removed: warning_name.is_removed,
+                    name: warning_name.name.clone(),
+                    debug_distances: None,
+                };
+                res.docs.push(doc);
+            }
+        }
+        if !res.docs.is_empty() {
+            let new_docs = self.process_docs(res.docs.clone());
+            res.docs = new_docs;
+            return Some(res);
+        }
+        None
+    }
 }
 
 // trait implementation
@@ -229,10 +264,24 @@ impl<T: Embedding, S: SmartNameChecker, E: Entities> BasicChecker for WarningNam
             let processed = self
                 .get_most_relevant_names(MAX_TRESHOLD, MAX_DIS, &entity)
                 .await?;
+
             match processed {
                 Some(ino) => inos.push(ino),
                 None => {
-                    if need_full_data {
+                    if keep_russian_and_dot(&entity.name).is_empty() {
+                        if let Some(e) = self.check_english_name(entity.clone()) {
+                            inos.push(e);
+                        } else if need_full_data {
+                            let accepted_name = WarningName {
+                                name: entity.name.clone(),
+                                normal_name: entity.norm_name.clone(),
+                                context: entity.context.clone(),
+                                name_type: entity.entity_type.clone(),
+                                docs: Vec::new(),
+                            };
+                            accepted_names.push(accepted_name);
+                        }
+                    } else if need_full_data {
                         let most_relevant = self.get_most_relevant_names(0.0, 100, &entity).await?;
 
                         if let Some(e) = most_relevant {
