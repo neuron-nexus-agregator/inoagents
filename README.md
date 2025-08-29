@@ -22,7 +22,7 @@
 1. Склонировать репозиторий:
 
 ```bash
-git clone <репозиторий>
+git clone https://github.com/neuron-nexus-agregator/inoagents.git
 cd inoagents
 ```
 
@@ -109,7 +109,8 @@ src/
  ├─ ino_api/         # API и хендлеры
  ├─ ino_checker/     # Логика проверки
  ├─ ner/             # Извлечение сущностей
- ├─ rv/              # Утилиты
+ ├─ rv/              # Для работы с сайтом RV
+ ├─ utils/           # Вспомогательные функции
  └─ main.rs          # Точка входа
 ```
 
