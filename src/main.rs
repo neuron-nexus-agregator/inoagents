@@ -24,12 +24,15 @@ use crate::embedding::vectorize::YandexEmbedding;
 use crate::db::interface::DB;
 use crate::db::sqlite::Database;
 
-use crate::ino_api::server_api::Checker as api_checker;
+use crate::ino_api::server_api::Checker;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use std::io::Write;
+
+const ADDR: &str = "0.0.0.0";
+const PORT: u16 = 8080;
 
 #[actix_web::main]
 async fn main() -> Result<(), std::io::Error> {
@@ -58,12 +61,12 @@ async fn main() -> Result<(), std::io::Error> {
         rv_entities,
     ));
 
-    println!("Запуск сервера");
+    println!("Запуск сервера по адресу {ADDR}:{PORT}");
     std::io::stdout().flush().unwrap();
 
     let need_full_data = true;
 
-    let api_checker = api_checker::new(need_full_data, warning_name_checker, db);
+    let api_checker = Checker::new(need_full_data, warning_name_checker, db).unwrap();
     let checker_data = web::Data::new(api_checker);
 
     HttpServer::new(move || {
@@ -77,7 +80,7 @@ async fn main() -> Result<(), std::io::Error> {
             .route("/update", web::get().to(handlers::update_inos))
             .route("/add", web::post().to(handlers::add_new_names))
     })
-    .bind(("0.0.0.0", 8080))?
+    .bind((ADDR, PORT))?
     .run()
     .await
 }

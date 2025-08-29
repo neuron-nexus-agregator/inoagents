@@ -48,10 +48,7 @@ pub async fn check_by_id_handler(
 }
 
 pub async fn update_inos(checker: web::Data<ApiChecker>) -> HttpResponse {
-    // блокируем доступ к изменяемым полям внутри Checker
-    let result = checker.update_warning_names().await;
-
-    match result {
+    match checker.update_warning_names().await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => HttpResponse::InternalServerError().json(ErrorS {
             error: format!("{e}"),
