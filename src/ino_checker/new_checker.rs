@@ -166,7 +166,15 @@ impl<T: Embedding, S: SmartNameChecker, E: Entities> WarningNamesChecker<T, S, E
 
         for _ in 0..max_retry {
             match self.vectorizer.get_embedding(name).await {
-                Ok(e) => return Ok(e.embedding.unwrap()),
+                Ok(e) => {
+                    if let Some(e) = e.error {
+                        last_error = Some(anyhow::anyhow!("{e}"));
+                    } else if let Some(e) = e.embedding {
+                        return Ok(e);
+                    } else {
+                        last_error = Some(anyhow::anyhow!("Unknown embedding error"));
+                    }
+                }
                 Err(e) => {
                     last_error = Some(anyhow::anyhow!("{e}"));
                     sleep(Duration::from_secs(1)).await;

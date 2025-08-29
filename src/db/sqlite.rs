@@ -24,7 +24,7 @@ impl Database {
 }
 
 impl DB for Database {
-    /// Чтение всех записей
+    /// Чтение всех записей из базы данныз
     fn get_all(&self) -> Result<Vec<Record>, anyhow::Error> {
         let mut stmt = self
             .conn

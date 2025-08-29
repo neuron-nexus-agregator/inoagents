@@ -36,6 +36,7 @@ impl<T: BasicChecker, D: DB> Checker<T, D> {
         })
     }
 
+    /// Проверка наличия запрещенных имен по id текста на сайте
     pub async fn check_by_id(&self, id: String, need_full_data: bool) -> HttpResponse {
         let mut i: u8 = 0;
         loop {
@@ -65,6 +66,7 @@ impl<T: BasicChecker, D: DB> Checker<T, D> {
         }
     }
 
+    /// Проверка наличия запрещенных имен по тексту
     pub async fn check_by_text(&self, text: String, need_full_data: bool) -> HttpResponse {
         let mut i: u8 = 0;
         loop {

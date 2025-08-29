@@ -22,6 +22,7 @@ pub struct Records {
     pub records: Vec<Record>,
 }
 
+/// Добавление новых запрещенных имен в память - POST
 pub async fn add_new_names(
     checker: web::Data<ApiChecker>,
     req: web::Json<Records>,
@@ -29,6 +30,7 @@ pub async fn add_new_names(
     checker.add_warning_names(req.records.clone()).await
 }
 
+/// Проверка наличия запрещенных имен по тексту - POST
 pub async fn check_by_text(
     checker: web::Data<ApiChecker>,
     req: web::Json<TextRequest>,
@@ -38,6 +40,7 @@ pub async fn check_by_text(
         .await
 }
 
+/// Проверка наличия запрещенных имен по id - GET
 pub async fn check_by_id_handler(
     checker: web::Data<ApiChecker>,
     path: web::Path<String>,
@@ -47,6 +50,7 @@ pub async fn check_by_id_handler(
         .await
 }
 
+/// Обновление списка запрещенных имен в памяти после обновления БД - GET
 pub async fn update_inos(checker: web::Data<ApiChecker>) -> HttpResponse {
     match checker.update_warning_names().await {
         Ok(_) => HttpResponse::Ok().finish(),

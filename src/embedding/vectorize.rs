@@ -15,6 +15,7 @@ impl YandexEmbedding {
 }
 
 impl Embedding for YandexEmbedding {
+    /// Получение векторного представления текста в виде 256-мерного массива f32
     async fn get_embedding(&self, text: &str) -> Result<Response, reqwest::Error> {
         let sub_text = keep_russian_and_dot(text).to_lowercase();
         let request = Request {
