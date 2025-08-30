@@ -36,31 +36,24 @@ const PORT: u16 = 8080;
 
 #[actix_web::main]
 async fn main() -> Result<(), std::io::Error> {
+    println!("Starting app...");
     dotenv().ok();
     env_logger::init();
 
     let entities_url = env::var("ENTITIES_URL").ok().unwrap();
     let rv_entities = PythonEntities::new(entities_url);
-
     let name_checker = NameChecker::new();
 
     let model = env::var("YANDEX_MODEL").ok().unwrap();
     let token = env::var("YANDEX_SECRET").ok().unwrap();
     let url = env::var("YANDEX_URL").ok().unwrap();
     let yandex_embedding = YandexEmbedding::new(model, token, url);
-
     let db = Arc::new(Mutex::new(
         Database::new("assets/db/ino.sqlite").ok().unwrap(),
     ));
     let warning_names = db.lock().await.get_all().ok().unwrap();
-
-    let warning_name_checker = Mutex::new(WarningNamesChecker::new(
-        warning_names,
-        yandex_embedding,
-        name_checker,
-        rv_entities,
-    ));
-
+    let warning_name_checker =
+        WarningNamesChecker::new(warning_names, yandex_embedding, name_checker, rv_entities);
     println!("Запуск сервера по адресу {ADDR}:{PORT}");
     std::io::stdout().flush().unwrap();
 

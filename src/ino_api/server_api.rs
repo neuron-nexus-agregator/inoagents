@@ -24,14 +24,10 @@ pub struct ErrorS {
 }
 
 impl<T: BasicChecker, D: DB> Checker<T, D> {
-    pub fn new(
-        need_full_data: bool,
-        checker: Mutex<T>,
-        database: Arc<Mutex<D>>,
-    ) -> Result<Self, Error> {
+    pub fn new(need_full_data: bool, checker: T, database: Arc<Mutex<D>>) -> Result<Self, Error> {
         Ok(Checker {
             need_full_data,
-            checker,
+            checker: Mutex::new(checker),
             database,
         })
     }
@@ -101,12 +97,13 @@ impl<T: BasicChecker, D: DB> Checker<T, D> {
         self.checker
             .lock()
             .await
-            .change_warning_names(new_warning_names);
+            .change_warning_names(new_warning_names)
+            .await;
         Ok(())
     }
 
     pub async fn add_warning_names(&self, names: Vec<Record>) -> HttpResponse {
-        self.checker.lock().await.add_warning_names(names);
+        self.checker.lock().await.add_warning_names(names).await;
         HttpResponse::Ok().finish()
     }
 }

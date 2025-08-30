@@ -5,10 +5,13 @@ edition = "2024"
 
 [dependencies]
 actix-web = "4.11.0"
+anda_db_hnsw = "0.4.7"
+angular = "0.1.1"
 anyhow = "1.0.99"
 calamine = "0.30.0"
 dotenv = "0.15.0"
 env_logger = "0.11.8"
+futures = "0.3.31"
 regex = "1.11.2"
 reqwest = { version="0.12.23", features = ["json", "blocking"] }
 rusqlite = "0.37.0"

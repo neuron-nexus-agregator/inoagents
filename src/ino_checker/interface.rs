@@ -19,10 +19,10 @@ pub trait BasicChecker {
     ) -> Result<model::WarningNames, anyhow::Error>;
 
     /// Изменение списка запрещенных имен
-    fn change_warning_names(&mut self, new_warning_names: Vec<Record>);
+    async fn change_warning_names(&self, new_warning_names: Vec<Record>);
 
     /// Добавление списка запрещенных имен
-    fn add_warning_names(&mut self, new_warning_names: Vec<Record>);
+    async fn add_warning_names(&self, new_warning_names: Vec<Record>);
 }
 
 pub trait SmartNameChecker {
